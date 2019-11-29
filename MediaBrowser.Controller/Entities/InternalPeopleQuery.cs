@@ -1,4 +1,5 @@
 using System;
+using MediaBrowser.Model.Entities;
 
 namespace MediaBrowser.Controller.Entities
 {
@@ -10,6 +11,8 @@ namespace MediaBrowser.Controller.Entities
         public int? MaxListOrder { get; set; }
         public Guid AppearsInItemId { get; set; }
         public string NameContains { get; set; }
+
+        public ValueTuple<string, SortOrder>[] OrderBy { get; set; }
 
         public InternalPeopleQuery()
         {

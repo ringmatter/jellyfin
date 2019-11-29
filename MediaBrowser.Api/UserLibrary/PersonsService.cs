@@ -106,7 +106,8 @@ namespace MediaBrowser.Api.UserLibrary
             var items = LibraryManager.GetPeopleItems(new InternalPeopleQuery
             {
                 PersonTypes = query.PersonTypes,
-                NameContains = query.NameContains ?? query.SearchTerm
+                NameContains = query.NameContains ?? query.SearchTerm,
+                OrderBy = query.OrderBy
             });
 
             if ((query.IsFavorite ?? false) && query.User != null)

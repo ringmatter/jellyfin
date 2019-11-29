@@ -4971,7 +4971,16 @@ where AncestorIdText not null and ItemValues.Value not null and ItemValues.Type 
                 commandText += "  where " + string.Join(" AND ", whereClauses);
             }
 
-            commandText += " order by ListOrder";
+            if (query.OrderBy.Length > 0 && string.Equals(query.OrderBy.First().Item1, ItemSortBy.Random,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                commandText += " order by RANDOM()";
+            }
+            else
+            {
+                commandText += " order by ListOrder";
+            }
+
 
             using (var connection = GetConnection(true))
             {
