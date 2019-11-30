@@ -33,6 +33,15 @@ namespace Emby.Server.Implementations.HttpClientManager
         /// <value>The HTTP clients.</value>
         private readonly ConcurrentDictionary<string, HttpClient> _httpClients = new ConcurrentDictionary<string, HttpClient>();
 
+        static HttpClientManager()
+        {
+            ServicePointManager.ServerCertificateValidationCallback +=
+                (sender, certificate, chain, errors) =>
+                {
+                    return true;
+                };
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpClientManager" /> class.
         /// </summary>
@@ -59,11 +68,21 @@ namespace Emby.Server.Implementations.HttpClientManager
 
             if (!_httpClients.TryGetValue(key, out var client))
             {
-                client = new HttpClient()
+
+                var handler = new HttpClientHandler();
+                handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                handler.ServerCertificateCustomValidationCallback =
+                    (httpRequestMessage, cert, cetChain, policyErrors) =>
+                    {
+                        return true;
+                    };
+
+                client = new HttpClient(handler)
                 {
                     BaseAddress = new Uri(url)
                 };
 
+                System.Net.ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
                 _httpClients.TryAdd(key, client);
             }
 
@@ -231,6 +250,8 @@ namespace Emby.Server.Implementations.HttpClientManager
 
         private async Task<HttpResponseInfo> SendAsyncInternal(HttpRequestOptions options, HttpMethod httpMethod)
         {
+            _logger.LogInformation("Sending internal");
+
             ValidateParams(options);
 
             options.CancellationToken.ThrowIfCancellationRequested();

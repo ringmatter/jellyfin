@@ -1,14 +1,9 @@
 ARG DOTNET_VERSION=3.0
-ARG FFMPEG_VERSION=latest
+ARG FFMPEG_VERSION=4.2
 
 FROM node:alpine as web-builder
 ARG JELLYFIN_WEB_VERSION=master
-RUN apk add curl \
- && curl -L https://github.com/jellyfin/jellyfin-web/archive/${JELLYFIN_WEB_VERSION}.tar.gz | tar zxf - \
- && cd jellyfin-web-* \
- && yarn install \
- && yarn build \
- && mv dist /dist
+ADD jellyfin-web /dist
 
 FROM mcr.microsoft.com/dotnet/core/sdk:${DOTNET_VERSION}-buster as builder
 WORKDIR /repo
