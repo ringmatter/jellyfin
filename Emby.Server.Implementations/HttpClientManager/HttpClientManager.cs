@@ -250,8 +250,6 @@ namespace Emby.Server.Implementations.HttpClientManager
 
         private async Task<HttpResponseInfo> SendAsyncInternal(HttpRequestOptions options, HttpMethod httpMethod)
         {
-            _logger.LogInformation("Sending internal");
-
             ValidateParams(options);
 
             options.CancellationToken.ThrowIfCancellationRequested();

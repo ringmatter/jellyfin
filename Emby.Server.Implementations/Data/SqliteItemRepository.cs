@@ -4971,7 +4971,7 @@ where AncestorIdText not null and ItemValues.Value not null and ItemValues.Type 
                 commandText += "  where " + string.Join(" AND ", whereClauses);
             }
 
-            if (query.OrderBy.Length > 0 && string.Equals(query.OrderBy.First().Item1, ItemSortBy.Random,
+            if (query.OrderBy != null && query.OrderBy.Length > 0 && string.Equals(query.OrderBy.First().Item1, ItemSortBy.Random,
                     StringComparison.OrdinalIgnoreCase))
             {
                 commandText += " order by RANDOM()";

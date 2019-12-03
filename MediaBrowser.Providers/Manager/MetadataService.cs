@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
@@ -71,6 +72,12 @@ namespace MediaBrowser.Providers.Manager
                 {
                     Logger.LogDebug("Refreshing {0} {1} because item.RequiresRefresh() returned true", typeof(TItemType).Name, item.Path ?? item.Name);
                 }
+            }
+
+            if (item is Person)
+            {
+                Logger.LogDebug("Forcing people refresh for {0}", item.Name);
+                requiresRefresh = true;
             }
 
             var itemImageProvider = new ItemImageProvider(Logger, ProviderManager, ServerConfigurationManager, FileSystem);
@@ -745,8 +752,10 @@ namespace MediaBrowser.Providers.Manager
                 }
             }
 
+            var stopRefreshIfLocal = !(item is Episode) && !(item is Person) && !(item is Season) && item.StopRefreshIfLocalMetadataFound;
+
             // Local metadata is king - if any is found don't run remote providers
-            if (!options.ReplaceAllMetadata && (!hasLocalMetadata || options.MetadataRefreshMode == MetadataRefreshMode.FullRefresh || !item.StopRefreshIfLocalMetadataFound))
+            if (!options.ReplaceAllMetadata && (!hasLocalMetadata || options.MetadataRefreshMode == MetadataRefreshMode.FullRefresh || !stopRefreshIfLocal))
             {
                 var remoteResult = await ExecuteRemoteProviders(temp, logName, id, providers.OfType<IRemoteMetadataProvider<TItemType, TIdType>>(), cancellationToken)
                     .ConfigureAwait(false);

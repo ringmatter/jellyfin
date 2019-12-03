@@ -66,7 +66,7 @@ namespace Emby.Server.Implementations.Library.Validators
                     var options = new MetadataRefreshOptions(new DirectoryService(_fileSystem))
                     {
                         ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
-                        MetadataRefreshMode = MetadataRefreshMode.ValidationOnly
+                        MetadataRefreshMode = MetadataRefreshMode.FullRefresh
                     };
 
                     await item.RefreshMetadata(options, cancellationToken).ConfigureAwait(false);
