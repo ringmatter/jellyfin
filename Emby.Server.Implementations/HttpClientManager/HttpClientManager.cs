@@ -301,6 +301,7 @@ namespace Emby.Server.Implementations.HttpClientManager
             };
         }
 
+        /// <inheritdoc />
         public Task<HttpResponseInfo> Post(HttpRequestOptions options)
             => SendAsync(options, HttpMethod.Post);
 
