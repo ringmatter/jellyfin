@@ -80,7 +80,7 @@ namespace MediaBrowser.Providers.Manager
                 requiresRefresh = true;
             }
 
-            var itemImageProvider = new ItemImageProvider(Logger, ProviderManager, ServerConfigurationManager, FileSystem);
+            var itemImageProvider = new ItemImageProvider(Logger, ProviderManager, FileSystem);
             var localImagesFailed = false;
 
             var allImageProviders = ((ProviderManager)ProviderManager).GetImageProviders(item, refreshOptions).ToList();
