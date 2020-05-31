@@ -17,7 +17,6 @@ using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Providers;
 using MediaBrowser.Model.Serialization;
-using MediaBrowser.Providers.Movies;
 using MediaBrowser.Providers.Tmdb.Models.Search;
 using MediaBrowser.Providers.Tmdb.Models.TV;
 using MediaBrowser.Providers.Tmdb.Movies;
@@ -28,9 +27,6 @@ namespace MediaBrowser.Providers.Tmdb.TV
     public class TmdbSeriesProvider : IRemoteMetadataProvider<Series, SeriesInfo>, IHasOrder
     {
         private const string GetTvInfo3 = TmdbUtils.BaseTmdbApiUrl + @"3/tv/{0}?api_key={1}&append_to_response=credits,images,keywords,external_ids,videos,content_ratings";
-        private readonly CultureInfo _usCulture = new CultureInfo("en-US");
-
-        internal static TmdbSeriesProvider Current { get; private set; }
 
         private readonly IJsonSerializer _jsonSerializer;
         private readonly IFileSystem _fileSystem;
@@ -40,7 +36,18 @@ namespace MediaBrowser.Providers.Tmdb.TV
         private readonly IHttpClient _httpClient;
         private readonly ILibraryManager _libraryManager;
 
-        public TmdbSeriesProvider(IJsonSerializer jsonSerializer, IFileSystem fileSystem, IServerConfigurationManager configurationManager, ILogger logger, ILocalizationManager localization, IHttpClient httpClient, ILibraryManager libraryManager)
+        private readonly CultureInfo _usCulture = new CultureInfo("en-US");
+
+        internal static TmdbSeriesProvider Current { get; private set; }
+
+        public TmdbSeriesProvider(
+            IJsonSerializer jsonSerializer,
+            IFileSystem fileSystem,
+            IServerConfigurationManager configurationManager,
+            ILogger<TmdbSeriesProvider> logger,
+            ILocalizationManager localization,
+            IHttpClient httpClient,
+            ILibraryManager libraryManager)
         {
             _jsonSerializer = jsonSerializer;
             _fileSystem = fileSystem;
@@ -211,9 +218,8 @@ namespace MediaBrowser.Providers.Tmdb.TV
             var series = seriesResult.Item;
 
             series.Name = seriesInfo.Name;
+            series.OriginalTitle = seriesInfo.Original_Name;
             series.SetProviderId(MetadataProviders.Tmdb, seriesInfo.Id.ToString(_usCulture));
-
-            //series.VoteCount = seriesInfo.vote_count;
 
             string voteAvg = seriesInfo.Vote_Average.ToString(CultureInfo.InvariantCulture);
 
@@ -234,7 +240,7 @@ namespace MediaBrowser.Providers.Tmdb.TV
                 series.Genres = seriesInfo.Genres.Select(i => i.Name).ToArray();
             }
 
-            //series.HomePageUrl = seriesInfo.homepage;
+            series.HomePageUrl = seriesInfo.Homepage;
 
             series.RunTimeTicks = seriesInfo.Episode_Run_Time.Select(i => TimeSpan.FromMinutes(i).Ticks).FirstOrDefault();
 
@@ -302,29 +308,61 @@ namespace MediaBrowser.Providers.Tmdb.TV
             seriesResult.ResetPeople();
             var tmdbImageUrl = settings.images.GetImageUrl("original");
 
-            if (seriesInfo.Credits != null && seriesInfo.Credits.Cast != null)
+            if (seriesInfo.Credits != null)
             {
-                foreach (var actor in seriesInfo.Credits.Cast.OrderBy(a => a.Order))
+                if (seriesInfo.Credits.Cast != null)
                 {
-                    var personInfo = new PersonInfo
+                    foreach (var actor in seriesInfo.Credits.Cast.OrderBy(a => a.Order))
                     {
-                        Name = actor.Name.Trim(),
-                        Role = actor.Character,
-                        Type = PersonType.Actor,
-                        SortOrder = actor.Order
+                        var personInfo = new PersonInfo
+                        {
+                            Name = actor.Name.Trim(),
+                            Role = actor.Character,
+                            Type = PersonType.Actor,
+                            SortOrder = actor.Order
+                        };
+
+                        if (!string.IsNullOrWhiteSpace(actor.Profile_Path))
+                        {
+                            personInfo.ImageUrl = tmdbImageUrl + actor.Profile_Path;
+                        }
+
+                        if (actor.Id > 0)
+                        {
+                            personInfo.SetProviderId(MetadataProviders.Tmdb, actor.Id.ToString(CultureInfo.InvariantCulture));
+                        }
+
+                        seriesResult.AddPerson(personInfo);
+                    }
+                }
+
+                if (seriesInfo.Credits.Crew != null)
+                {
+                    var keepTypes = new[]
+                    {
+                        PersonType.Director,
+                        PersonType.Writer,
+                        PersonType.Producer
                     };
 
-                    if (!string.IsNullOrWhiteSpace(actor.Profile_Path))
+                    foreach (var person in seriesInfo.Credits.Crew)
                     {
-                        personInfo.ImageUrl = tmdbImageUrl + actor.Profile_Path;
-                    }
+                        // Normalize this
+                        var type = TmdbUtils.MapCrewToPersonType(person);
 
-                    if (actor.Id > 0)
-                    {
-                        personInfo.SetProviderId(MetadataProviders.Tmdb, actor.Id.ToString(CultureInfo.InvariantCulture));
-                    }
+                        if (!keepTypes.Contains(type, StringComparer.OrdinalIgnoreCase)
+                            && !keepTypes.Contains(person.Job ?? string.Empty, StringComparer.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
 
-                    seriesResult.AddPerson(personInfo);
+                        seriesResult.AddPerson(new PersonInfo
+                        {
+                            Name = person.Name.Trim(),
+                            Role = person.Job,
+                            Type = type
+                        });
+                    }
                 }
             }
         }

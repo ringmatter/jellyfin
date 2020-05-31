@@ -1,13 +1,13 @@
-﻿using System;
-using System.Globalization;
-using Emby.Naming.Common;
+﻿using Emby.Naming.Common;
 using Emby.Naming.Video;
 using Xunit;
 
 namespace Jellyfin.Naming.Tests.Video
 {
-    public class StubTests : BaseVideoTest
+    public class StubTests
     {
+        private readonly NamingOptions _namingOptions = new NamingOptions();
+
         [Fact]
         public void TestStubs()
         {
@@ -29,26 +29,24 @@ namespace Jellyfin.Naming.Tests.Video
         public void TestStubName()
         {
             var result =
-                GetParser().ResolveFile(@"C:/Users/media/Desktop/Video Test/Movies/Oblivion/Oblivion.dvd.disc");
+                new VideoResolver(_namingOptions).ResolveFile(@"C:/Users/media/Desktop/Video Test/Movies/Oblivion/Oblivion.dvd.disc");
 
-            Assert.Equal("Oblivion", result.Name);
+            Assert.Equal("Oblivion", result?.Name);
         }
 
-        private void Test(string path, bool isStub, string stubType)
+        private void Test(string path, bool isStub, string? stubType)
         {
-            var options = new NamingOptions();
+            var isStubResult = StubResolver.TryResolveFile(path, _namingOptions, out var stubTypeResult);
 
-            var resultStubType = StubResolver.ResolveFile(path, options);
+            Assert.Equal(isStub, isStubResult);
 
-            Assert.Equal(isStub, resultStubType.IsStub);
-
-            if (stubType == null)
+            if (isStub)
             {
-                Assert.Null(resultStubType.StubType);
+                Assert.Equal(stubType, stubTypeResult);
             }
             else
             {
-                Assert.Equal(stubType, resultStubType.StubType, true);
+                Assert.Null(stubTypeResult);
             }
         }
     }

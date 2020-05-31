@@ -613,7 +613,6 @@ namespace MediaBrowser.Providers.Manager
 
                         // Run custom refresh providers if they report a change or any remote providers change
                         return anyRemoteProvidersChanged || providersWithChanges.Contains(i);
-
                     }).ToList();
                 }
             }

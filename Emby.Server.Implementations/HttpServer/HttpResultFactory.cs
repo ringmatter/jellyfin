@@ -1,5 +1,4 @@
 #pragma warning disable CS1591
-#pragma warning disable SA1600
 
 using System;
 using System.Collections.Generic;
@@ -29,6 +28,12 @@ namespace Emby.Server.Implementations.HttpServer
     /// </summary>
     public class HttpResultFactory : IHttpResultFactory
     {
+        // Last-Modified and If-Modified-Since must follow strict date format,
+        // see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+        private const string HttpDateFormat = "ddd, dd MMM yyyy HH:mm:ss \"GMT\"";
+        // We specifically use en-US culture because both day of week and month names require it
+        private static readonly CultureInfo _enUSculture = new CultureInfo("en-US", false);
+
         /// <summary>
         /// The logger.
         /// </summary>
@@ -421,7 +426,11 @@ namespace Emby.Server.Implementations.HttpServer
 
             if (!noCache)
             {
-                DateTime.TryParse(requestContext.Headers[HeaderNames.IfModifiedSince], out var ifModifiedSinceHeader);
+                if (!DateTime.TryParseExact(requestContext.Headers[HeaderNames.IfModifiedSince], HttpDateFormat, _enUSculture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var ifModifiedSinceHeader))
+                {
+                    _logger.LogDebug("Failed to parse If-Modified-Since header date: {0}", requestContext.Headers[HeaderNames.IfModifiedSince]);
+                    return null;
+                }
 
                 if (IsNotModified(ifModifiedSinceHeader, options.CacheDuration, options.DateLastModified))
                 {
@@ -630,7 +639,7 @@ namespace Emby.Server.Implementations.HttpServer
 
             if (lastModifiedDate.HasValue)
             {
-                responseHeaders[HeaderNames.LastModified] = lastModifiedDate.Value.ToString(CultureInfo.InvariantCulture);
+                responseHeaders[HeaderNames.LastModified] = lastModifiedDate.Value.ToUniversalTime().ToString(HttpDateFormat, _enUSculture);
             }
         }
 

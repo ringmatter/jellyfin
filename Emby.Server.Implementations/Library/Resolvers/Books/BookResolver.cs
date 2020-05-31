@@ -1,5 +1,4 @@
 #pragma warning disable CS1591
-#pragma warning disable SA1600
 
 using System;
 using System.IO;
@@ -12,7 +11,7 @@ namespace Emby.Server.Implementations.Library.Resolvers.Books
 {
     public class BookResolver : MediaBrowser.Controller.Resolvers.ItemResolver<Book>
     {
-        private readonly string[] _validExtensions = { ".pdf", ".epub", ".mobi", ".cbr", ".cbz", ".azw3" };
+        private readonly string[] _validExtensions = { ".azw", ".azw3", ".cb7", ".cbr", ".cbt", ".cbz", ".epub", ".mobi", ".opf", ".pdf" };
 
         protected override Book Resolve(ItemResolveArgs args)
         {

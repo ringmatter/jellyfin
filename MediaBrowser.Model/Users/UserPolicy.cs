@@ -1,3 +1,5 @@
+#pragma warning disable CS1591
+
 using System;
 using MediaBrowser.Model.Configuration;
 
@@ -44,6 +46,7 @@ namespace MediaBrowser.Model.Users
         public bool EnableAudioPlaybackTranscoding { get; set; }
         public bool EnableVideoPlaybackTranscoding { get; set; }
         public bool EnablePlaybackRemuxing { get; set; }
+        public bool ForceRemoteSourceTranscoding { get; set; }
 
         public bool EnableContentDeletion { get; set; }
         public string[] EnableContentDeletionFromFolders { get; set; }
@@ -77,10 +80,16 @@ namespace MediaBrowser.Model.Users
         public string AuthenticationProviderId { get; set; }
         public string PasswordResetProviderId { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating what SyncPlay features the user can access.
+        /// </summary>
+        /// <value>Access level to SyncPlay features.</value>
+        public SyncPlayAccess SyncPlayAccess { get; set; }
+
         public UserPolicy()
         {
             IsHidden = true;
-            
+
             EnableContentDeletion = false;
             EnableContentDeletionFromFolders = Array.Empty<string>();
 
@@ -91,7 +100,7 @@ namespace MediaBrowser.Model.Users
             EnableAudioPlaybackTranscoding = true;
             EnableVideoPlaybackTranscoding = true;
             EnablePlaybackRemuxing = true;
-
+            ForceRemoteSourceTranscoding = false;
             EnableLiveTvManagement = true;
             EnableLiveTvAccess = true;
 
@@ -122,6 +131,7 @@ namespace MediaBrowser.Model.Users
             EnableContentDownloading = true;
             EnablePublicSharing = true;
             EnableRemoteAccess = true;
+            SyncPlayAccess = SyncPlayAccess.CreateAndJoinGroups;
         }
     }
 }

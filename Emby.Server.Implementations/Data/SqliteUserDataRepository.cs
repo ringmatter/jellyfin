@@ -1,5 +1,4 @@
 #pragma warning disable CS1591
-#pragma warning disable SA1600
 
 using System;
 using System.Collections.Generic;
@@ -375,6 +374,16 @@ namespace Emby.Server.Implementations.Data
             }
 
             return userData;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// There is nothing to dispose here since <see cref="BaseSqliteRepository.WriteLock"/> and
+        /// <see cref="BaseSqliteRepository.WriteConnection"/> are managed by <see cref="SqliteItemRepository"/>.
+        /// See <see cref="Initialize(IUserManager, SemaphoreSlim, SQLiteDatabaseConnection)"/>.
+        /// </remarks>
+        protected override void Dispose(bool dispose)
+        {
         }
     }
 }

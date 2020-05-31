@@ -1,5 +1,10 @@
+#pragma warning disable CS1591
+#pragma warning disable SA1402
+#pragma warning disable SA1649
+
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,20 +12,20 @@ using MediaBrowser.Common.Extensions;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Extensions;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Plugins;
-using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Net;
 using MediaBrowser.Model.Plugins;
-using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace MediaBrowser.WebDashboard.Api
 {
     /// <summary>
-    /// Class GetDashboardConfigurationPages
+    /// Class GetDashboardConfigurationPages.
     /// </summary>
     [Route("/web/ConfigurationPages", "GET")]
     public class GetDashboardConfigurationPages : IReturn<List<ConfigurationPageInfo>>
@@ -30,11 +35,12 @@ namespace MediaBrowser.WebDashboard.Api
         /// </summary>
         /// <value>The type of the page.</value>
         public ConfigurationPageType? PageType { get; set; }
+
         public bool? EnableInMainMenu { get; set; }
     }
 
     /// <summary>
-    /// Class GetDashboardConfigurationPage
+    /// Class GetDashboardConfigurationPage.
     /// </summary>
     [Route("/web/ConfigurationPage", "GET")]
     public class GetDashboardConfigurationPage
@@ -46,19 +52,13 @@ namespace MediaBrowser.WebDashboard.Api
         public string Name { get; set; }
     }
 
-    [Route("/web/Package", "GET", IsHidden = true)]
-    public class GetDashboardPackage
-    {
-        public string Mode { get; set; }
-    }
-
     [Route("/robots.txt", "GET", IsHidden = true)]
     public class GetRobotsTxt
     {
     }
 
     /// <summary>
-    /// Class GetDashboardResource
+    /// Class GetDashboardResource.
     /// </summary>
     [Route("/web/{ResourceName*}", "GET", IsHidden = true)]
     public class GetDashboardResource
@@ -68,6 +68,7 @@ namespace MediaBrowser.WebDashboard.Api
         /// </summary>
         /// <value>The name.</value>
         public string ResourceName { get; set; }
+
         /// <summary>
         /// Gets or sets the V.
         /// </summary>
@@ -81,7 +82,7 @@ namespace MediaBrowser.WebDashboard.Api
     }
 
     /// <summary>
-    /// Class DashboardService
+    /// Class DashboardService.
     /// </summary>
     public class DashboardService : IService, IRequiresRequest
     {
@@ -96,6 +97,39 @@ namespace MediaBrowser.WebDashboard.Api
         /// </summary>
         /// <value>The HTTP result factory.</value>
         private readonly IHttpResultFactory _resultFactory;
+        private readonly IServerApplicationHost _appHost;
+        private readonly IConfiguration _appConfig;
+        private readonly IServerConfigurationManager _serverConfigurationManager;
+        private readonly IFileSystem _fileSystem;
+        private readonly IResourceFileManager _resourceFileManager;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DashboardService" /> class.
+        /// </summary>
+        /// <param name="logger">The logger.</param>
+        /// <param name="appHost">The application host.</param>
+        /// <param name="appConfig">The application configuration.</param>
+        /// <param name="resourceFileManager">The resource file manager.</param>
+        /// <param name="serverConfigurationManager">The server configuration manager.</param>
+        /// <param name="fileSystem">The file system.</param>
+        /// <param name="resultFactory">The result factory.</param>
+        public DashboardService(
+            ILogger<DashboardService> logger,
+            IServerApplicationHost appHost,
+            IConfiguration appConfig,
+            IResourceFileManager resourceFileManager,
+            IServerConfigurationManager serverConfigurationManager,
+            IFileSystem fileSystem,
+            IHttpResultFactory resultFactory)
+        {
+            _logger = logger;
+            _appHost = appHost;
+            _appConfig = appConfig;
+            _resourceFileManager = resourceFileManager;
+            _serverConfigurationManager = serverConfigurationManager;
+            _fileSystem = fileSystem;
+            _resultFactory = resultFactory;
+        }
 
         /// <summary>
         /// Gets or sets the request context.
@@ -104,54 +138,33 @@ namespace MediaBrowser.WebDashboard.Api
         public IRequest Request { get; set; }
 
         /// <summary>
-        /// The _app host
+        /// Gets the path of the directory containing the static web interface content, or null if the server is not
+        /// hosting the web client.
         /// </summary>
-        private readonly IServerApplicationHost _appHost;
+        public string DashboardUIPath => GetDashboardUIPath(_appConfig, _serverConfigurationManager);
 
         /// <summary>
-        /// The _server configuration manager
+        /// Gets the path of the directory containing the static web interface content.
         /// </summary>
-        private readonly IServerConfigurationManager _serverConfigurationManager;
-
-        private readonly IFileSystem _fileSystem;
-        private IResourceFileManager _resourceFileManager;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DashboardService" /> class.
-        /// </summary>
-        public DashboardService(
-            IServerApplicationHost appHost,
-            IResourceFileManager resourceFileManager,
-            IServerConfigurationManager serverConfigurationManager,
-            IFileSystem fileSystem,
-            ILogger logger,
-            IHttpResultFactory resultFactory)
+        /// <param name="appConfig">The app configuration.</param>
+        /// <param name="serverConfigManager">The server configuration manager.</param>
+        /// <returns>The directory path, or null if the server is not hosting the web client.</returns>
+        public static string GetDashboardUIPath(IConfiguration appConfig, IServerConfigurationManager serverConfigManager)
         {
-            _appHost = appHost;
-            _serverConfigurationManager = serverConfigurationManager;
-            _fileSystem = fileSystem;
-            _logger = logger;
-            _resultFactory = resultFactory;
-            _resourceFileManager = resourceFileManager;
-        }
-
-        /// <summary>
-        /// Gets the path for the web interface.
-        /// </summary>
-        /// <value>The path for the web interface.</value>
-        public string DashboardUIPath
-        {
-            get
+            if (!appConfig.HostWebClient())
             {
-                if (!string.IsNullOrEmpty(_serverConfigurationManager.Configuration.DashboardSourcePath))
-                {
-                    return _serverConfigurationManager.Configuration.DashboardSourcePath;
-                }
-
-                return _serverConfigurationManager.ApplicationPaths.WebPath;
+                return null;
             }
+
+            if (!string.IsNullOrEmpty(serverConfigManager.Configuration.DashboardSourcePath))
+            {
+                return serverConfigManager.Configuration.DashboardSourcePath;
+            }
+
+            return serverConfigManager.ApplicationPaths.WebPath;
         }
 
+        [SuppressMessage("Microsoft.Performance", "CA1801:ReviewUnusedParameters", MessageId = "request", Justification = "Required for ServiceStack")]
         public object Get(GetFavIcon request)
         {
             return Get(new GetDashboardResource
@@ -165,6 +178,7 @@ namespace MediaBrowser.WebDashboard.Api
         /// </summary>
         /// <param name="request">The request.</param>
         /// <returns>System.Object.</returns>
+        [SuppressMessage("Microsoft.Performance", "CA1801:ReviewUnusedParameters", MessageId = "request", Justification = "Required for ServiceStack")]
         public Task<object> Get(GetDashboardConfigurationPage request)
         {
             IPlugin plugin = null;
@@ -189,7 +203,7 @@ namespace MediaBrowser.WebDashboard.Api
                     stream = plugin.GetType().Assembly.GetManifestResourceStream(altPage.Item1.EmbeddedResourcePath);
 
                     isJs = string.Equals(Path.GetExtension(altPage.Item1.EmbeddedResourcePath), ".js", StringComparison.OrdinalIgnoreCase);
-                    isTemplate = altPage.Item1.EmbeddedResourcePath.EndsWith(".template.html");
+                    isTemplate = altPage.Item1.EmbeddedResourcePath.EndsWith(".template.html", StringComparison.Ordinal);
                 }
             }
 
@@ -205,7 +219,7 @@ namespace MediaBrowser.WebDashboard.Api
                     return _resultFactory.GetStaticResult(Request, plugin.Version.ToString().GetMD5(), null, null, MimeTypes.GetMimeType("page.html"), () => Task.FromResult(stream));
                 }
 
-                return _resultFactory.GetStaticResult(Request, plugin.Version.ToString().GetMD5(), null, null, MimeTypes.GetMimeType("page.html"), () => GetPackageCreator(DashboardUIPath).ModifyHtml("dummy.html", stream, null, _appHost.ApplicationVersionString, null));
+                return _resultFactory.GetStaticResult(Request, plugin.Version.ToString().GetMD5(), null, null, MimeTypes.GetMimeType("page.html"), () => Task.FromResult(stream));
             }
 
             throw new ResourceNotFoundException();
@@ -237,7 +251,6 @@ namespace MediaBrowser.WebDashboard.Api
             // Don't allow a failing plugin to fail them all
             var configPages = pages.Select(p =>
             {
-
                 try
                 {
                     return new ConfigurationPageInfo(p);
@@ -288,6 +301,7 @@ namespace MediaBrowser.WebDashboard.Api
             return GetPluginPages(plugin).Select(i => new ConfigurationPageInfo(plugin, i.Item1));
         }
 
+        [SuppressMessage("Microsoft.Performance", "CA1801:ReviewUnusedParameters", MessageId = "request", Justification = "Required for ServiceStack")]
         public object Get(GetRobotsTxt request)
         {
             return Get(new GetDashboardResource
@@ -303,146 +317,24 @@ namespace MediaBrowser.WebDashboard.Api
         /// <returns>System.Object.</returns>
         public async Task<object> Get(GetDashboardResource request)
         {
-            var path = request.ResourceName;
+            if (!_appConfig.HostWebClient() || DashboardUIPath == null)
+            {
+                throw new ResourceNotFoundException();
+            }
 
-            var contentType = MimeTypes.GetMimeType(path);
+            var path = request?.ResourceName;
             var basePath = DashboardUIPath;
 
             // Bounce them to the startup wizard if it hasn't been completed yet
-            if (!_serverConfigurationManager.Configuration.IsStartupWizardCompleted &&
-                Request.RawUrl.IndexOf("wizard", StringComparison.OrdinalIgnoreCase) == -1 &&
-                PackageCreator.IsCoreHtml(path))
+            if (!_serverConfigurationManager.Configuration.IsStartupWizardCompleted
+                && !Request.RawUrl.Contains("wizard", StringComparison.OrdinalIgnoreCase)
+                && Request.RawUrl.Contains("index", StringComparison.OrdinalIgnoreCase))
             {
-                // But don't redirect if an html import is being requested.
-                if (path.IndexOf("bower_components", StringComparison.OrdinalIgnoreCase) == -1)
-                {
-                    Request.Response.Redirect("index.html?start=wizard#!/wizardstart.html");
-                    return null;
-                }
+                Request.Response.Redirect("index.html?start=wizard#!/wizardstart.html");
+                return null;
             }
 
-            var localizationCulture = GetLocalizationCulture();
-
-            // Don't cache if not configured to do so
-            // But always cache images to simulate production
-            if (!_serverConfigurationManager.Configuration.EnableDashboardResponseCaching &&
-                !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) &&
-                !contentType.StartsWith("font/", StringComparison.OrdinalIgnoreCase))
-            {
-                var stream = await GetResourceStream(basePath, path, localizationCulture).ConfigureAwait(false);
-                return _resultFactory.GetResult(Request, stream, contentType);
-            }
-
-            TimeSpan? cacheDuration = null;
-
-            // Cache images unconditionally - updates to image files will require new filename
-            // If there's a version number in the query string we can cache this unconditionally
-            if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) || contentType.StartsWith("font/", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(request.V))
-            {
-                cacheDuration = TimeSpan.FromDays(365);
-            }
-
-            var cacheKey = (_appHost.ApplicationVersionString + (localizationCulture ?? string.Empty) + path).GetMD5();
-
-            // html gets modified on the fly
-            if (contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
-            {
-                return await _resultFactory.GetStaticResult(Request, cacheKey, null, cacheDuration, contentType, () => GetResourceStream(basePath, path, localizationCulture)).ConfigureAwait(false);
-            }
-
-            return await _resultFactory.GetStaticFileResult(Request, _resourceFileManager.GetResourcePath(basePath, path));
-        }
-
-        private string GetLocalizationCulture()
-        {
-            return _serverConfigurationManager.Configuration.UICulture;
-        }
-
-        /// <summary>
-        /// Gets the resource stream.
-        /// </summary>
-        private Task<Stream> GetResourceStream(string basePath, string virtualPath, string localizationCulture)
-        {
-            return GetPackageCreator(basePath)
-                .GetResource(virtualPath, null, localizationCulture, _appHost.ApplicationVersionString);
-        }
-
-        private PackageCreator GetPackageCreator(string basePath)
-        {
-            return new PackageCreator(basePath, _resourceFileManager);
-        }
-
-        public async Task<object> Get(GetDashboardPackage request)
-        {
-            var mode = request.Mode;
-
-            var inputPath = string.IsNullOrWhiteSpace(mode) ?
-                DashboardUIPath
-                : "C:\\dev\\emby-web-mobile-master\\dist";
-
-            var targetPath = !string.IsNullOrWhiteSpace(mode) ?
-                inputPath
-                : "C:\\dev\\emby-web-mobile\\src";
-
-            var packageCreator = GetPackageCreator(inputPath);
-
-            if (!string.Equals(inputPath, targetPath, StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    Directory.Delete(targetPath, true);
-                }
-                catch (IOException)
-                {
-
-                }
-
-                CopyDirectory(inputPath, targetPath);
-            }
-
-            var appVersion = _appHost.ApplicationVersionString;
-
-            await DumpHtml(packageCreator, inputPath, targetPath, mode, appVersion);
-
-            return "";
-        }
-
-        private async Task DumpHtml(PackageCreator packageCreator, string source, string destination, string mode, string appVersion)
-        {
-            foreach (var file in _fileSystem.GetFiles(source))
-            {
-                var filename = file.Name;
-
-                if (!string.Equals(file.Extension, ".html", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                await DumpFile(packageCreator, filename, Path.Combine(destination, filename), mode, appVersion).ConfigureAwait(false);
-            }
-        }
-
-        private async Task DumpFile(PackageCreator packageCreator, string resourceVirtualPath, string destinationFilePath, string mode, string appVersion)
-        {
-            using (var stream = await packageCreator.GetResource(resourceVirtualPath, mode, null, appVersion).ConfigureAwait(false))
-            using (var fs = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write, FileShare.Read))
-            {
-                await stream.CopyToAsync(fs);
-            }
-        }
-
-        private void CopyDirectory(string source, string destination)
-        {
-            Directory.CreateDirectory(destination);
-
-            //Now Create all of the directories
-            foreach (var dirPath in _fileSystem.GetDirectories(source, true))
-                Directory.CreateDirectory(dirPath.FullName.Replace(source, destination));
-
-            //Copy all the files & Replaces any files with the same name
-            foreach (var newPath in _fileSystem.GetFiles(source, true))
-                File.Copy(newPath.FullName, newPath.FullName.Replace(source, destination), true);
+            return await _resultFactory.GetStaticFileResult(Request, _resourceFileManager.GetResourcePath(basePath, path)).ConfigureAwait(false);
         }
     }
-
 }

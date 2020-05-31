@@ -10,12 +10,22 @@ using Microsoft.Extensions.Logging;
 namespace MediaBrowser.Controller.Session
 {
     /// <summary>
-    /// Class SessionInfo
+    /// Class SessionInfo.
     /// </summary>
-    public class SessionInfo : IDisposable
+    public sealed class SessionInfo : IDisposable
     {
-        private ISessionManager _sessionManager;
+        // 1 second
+        private const long ProgressIncrement = 10000000;
+
+        private readonly ISessionManager _sessionManager;
         private readonly ILogger _logger;
+
+
+        private readonly object _progressLock = new object();
+        private Timer _progressTimer;
+        private PlaybackProgressInfo _lastProgressInfo;
+
+        private bool _disposed = false;
 
         public SessionInfo(ISessionManager sessionManager, ILogger logger)
         {
@@ -97,8 +107,6 @@ namespace MediaBrowser.Controller.Session
         /// <value>The name of the device.</value>
         public string DeviceName { get; set; }
 
-        public string DeviceType { get; set; }
-
         /// <summary>
         /// Gets or sets the now playing item.
         /// </summary>
@@ -106,6 +114,8 @@ namespace MediaBrowser.Controller.Session
         public BaseItemDto NowPlayingItem { get; set; }
 
         public BaseItem FullNowPlayingItem { get; set; }
+
+        public BaseItemDto NowViewingItem { get; set; }
 
         /// <summary>
         /// Gets or sets the device id.
@@ -125,22 +135,6 @@ namespace MediaBrowser.Controller.Session
         /// <value>The session controller.</value>
         [JsonIgnore]
         public ISessionController[] SessionControllers { get; set; }
-
-        /// <summary>
-        /// Gets or sets the supported commands.
-        /// </summary>
-        /// <value>The supported commands.</value>
-        public string[] SupportedCommands
-        {
-            get
-            {
-                if (Capabilities == null)
-                {
-                    return new string[] { };
-                }
-                return Capabilities.SupportedCommands;
-            }
-        }
 
         public TranscodingInfo TranscodingInfo { get; set; }
 
@@ -213,6 +207,14 @@ namespace MediaBrowser.Controller.Session
             }
         }
 
+        public QueueItem[] NowPlayingQueue { get; set; }
+
+        public bool HasCustomDeviceName { get; set; }
+
+        public string PlaylistItemId { get; set; }
+
+        public string UserPrimaryImageTag { get; set; }
+
         public Tuple<ISessionController, bool> EnsureController<T>(Func<SessionInfo, ISessionController> factory)
         {
             var controllers = SessionControllers.ToList();
@@ -239,11 +241,6 @@ namespace MediaBrowser.Controller.Session
             SessionControllers = controllers.ToArray();
         }
 
-        public bool ContainsUser(string userId)
-        {
-            return ContainsUser(new Guid(userId));
-        }
-
         public bool ContainsUser(Guid userId)
         {
             if (UserId.Equals(userId))
@@ -260,10 +257,6 @@ namespace MediaBrowser.Controller.Session
             }
             return false;
         }
-
-        private readonly object _progressLock = new object();
-        private Timer _progressTimer;
-        private PlaybackProgressInfo _lastProgressInfo;
 
         public void StartAutomaticProgress(PlaybackProgressInfo progressInfo)
         {
@@ -286,9 +279,6 @@ namespace MediaBrowser.Controller.Session
                 }
             }
         }
-
-        // 1 second
-        private const long ProgressIncrement = 10000000;
 
         private async void OnProgressTimerCallback(object state)
         {
@@ -348,8 +338,7 @@ namespace MediaBrowser.Controller.Session
             }
         }
 
-        private bool _disposed = false;
-
+        /// <inheritdoc />
         public void Dispose()
         {
             _disposed = true;
@@ -361,30 +350,12 @@ namespace MediaBrowser.Controller.Session
 
             foreach (var controller in controllers)
             {
-                var disposable = controller as IDisposable;
-
-                if (disposable != null)
+                if (controller is IDisposable disposable)
                 {
                     _logger.LogDebug("Disposing session controller {0}", disposable.GetType().Name);
-
-                    try
-                    {
-                        disposable.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error disposing session controller");
-                    }
+                    disposable.Dispose();
                 }
             }
-
-            _sessionManager = null;
         }
-
-        public QueueItem[] NowPlayingQueue { get; set; }
-        public bool HasCustomDeviceName { get; set; }
-        public string PlaylistItemId { get; set; }
-        public string ServerId { get; set; }
-        public string UserPrimaryImageTag { get; set; }
     }
 }

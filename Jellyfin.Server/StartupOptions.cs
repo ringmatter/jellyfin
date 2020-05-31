@@ -1,5 +1,11 @@
+using System;
+using System.Collections.Generic;
 using CommandLine;
 using Emby.Server.Implementations;
+using Emby.Server.Implementations.EntryPoints;
+using Emby.Server.Implementations.Udp;
+using Emby.Server.Implementations.Updates;
+using MediaBrowser.Controller.Extensions;
 
 namespace Jellyfin.Server
 {
@@ -14,6 +20,12 @@ namespace Jellyfin.Server
         /// <value>The path to the data directory.</value>
         [Option('d', "datadir", Required = false, HelpText = "Path to use for the data folder (database files, etc.).")]
         public string? DataDir { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the server should not host the web client.
+        /// </summary>
+        [Option("nowebclient", Required = false, HelpText = "Indicates that the web server should not host the web client.")]
+        public bool NoWebClient { get; set; }
 
         /// <summary>
         /// Gets or sets the path to the web directory.
@@ -66,5 +78,39 @@ namespace Jellyfin.Server
         /// <inheritdoc />
         [Option("restartargs", Required = false, HelpText = "Arguments for restart script.")]
         public string? RestartArgs { get; set; }
+
+        /// <inheritdoc />
+        [Option("plugin-manifest-url", Required = false, HelpText = "A custom URL for the plugin repository JSON manifest")]
+        public string? PluginManifestUrl { get; set; }
+
+        /// <inheritdoc />
+        [Option("published-server-url", Required = false, HelpText = "Jellyfin Server URL to publish via auto discover process")]
+        public Uri? PublishedServerUrl { get; set; }
+
+        /// <summary>
+        /// Gets the command line options as a dictionary that can be used in the .NET configuration system.
+        /// </summary>
+        /// <returns>The configuration dictionary.</returns>
+        public Dictionary<string, string> ConvertToConfig()
+        {
+            var config = new Dictionary<string, string>();
+
+            if (PluginManifestUrl != null)
+            {
+                config.Add(InstallationManager.PluginManifestUrlKey, PluginManifestUrl);
+            }
+
+            if (NoWebClient)
+            {
+                config.Add(ConfigurationExtensions.HostWebClientKey, bool.FalseString);
+            }
+
+            if (PublishedServerUrl != null)
+            {
+                config.Add(UdpServer.AddressOverrideConfigKey, PublishedServerUrl.ToString());
+            }
+
+            return config;
+        }
     }
 }
