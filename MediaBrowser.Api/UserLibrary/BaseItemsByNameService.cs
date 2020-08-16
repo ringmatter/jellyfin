@@ -112,6 +112,8 @@ namespace MediaBrowser.Api.UserLibrary
             var includeItemTypes = request.GetIncludeItemTypes();
             var mediaTypes = request.GetMediaTypes();
 
+            Logger.LogInformation("StartIndex {0}", request.StartIndex);
+            Logger.LogInformation("Limit {0}", request.Limit);
             var query = new InternalItemsQuery(user)
             {
                 ExcludeItemTypes = excludeItemTypes,

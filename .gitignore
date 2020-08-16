@@ -277,3 +277,6 @@ BenchmarkDotNet.Artifacts
 web/
 web-src.*
 MediaBrowser.WebDashboard/jellyfin-web
+
+.fake
+.ionide

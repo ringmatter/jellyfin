@@ -134,6 +134,14 @@ namespace MediaBrowser.Controller.Persistence
         List<string> GetPeopleNames(InternalPeopleQuery query);
 
         /// <summary>
+        /// Gets the people names count.
+        /// </summary>
+        /// <param name="query">The query.</param>
+        /// <returns>long.</returns>
+        public long CountPeopleNames(InternalPeopleQuery query);
+
+
+        /// <summary>
         /// Gets the item ids with path.
         /// </summary>
         /// <param name="query">The query.</param>

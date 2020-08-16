@@ -215,6 +215,8 @@ namespace MediaBrowser.Api
                 .OrderBy(i => i)
                 .ToArray();
 
+            result.Tags = new string[1]{"Female"};
+
             result.OfficialRatings = items
                 .Select(i => i.OfficialRating)
                 .Where(i => !string.IsNullOrWhiteSpace(i))

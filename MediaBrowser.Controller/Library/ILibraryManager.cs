@@ -437,6 +437,8 @@ namespace MediaBrowser.Controller.Library
         /// <returns>List&lt;Person&gt;.</returns>
         List<Person> GetPeopleItems(InternalPeopleQuery query);
 
+        long CountPeopleItems(InternalPeopleQuery query);
+
         /// <summary>
         /// Updates the people.
         /// </summary>

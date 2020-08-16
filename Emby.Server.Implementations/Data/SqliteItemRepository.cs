@@ -5042,14 +5042,8 @@ where AncestorIdText not null and ItemValues.Value not null and ItemValues.Type 
             }
         }
 
-        public List<string> GetPeopleNames(InternalPeopleQuery query)
+        private string getPeopleNamesCommand(InternalPeopleQuery query, bool withLimit)
         {
-            if (query == null)
-            {
-                throw new ArgumentNullException(nameof(query));
-            }
-
-            CheckDisposed();
 
             var commandText = "select Distinct Name from People";
 
@@ -5065,16 +5059,86 @@ where AncestorIdText not null and ItemValues.Value not null and ItemValues.Type 
             {
                 commandText += " order by RANDOM()";
             }
+            else if (query.OrderBy != null && string.Equals(query.OrderBy.First().Item1, ItemSortBy.Name,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                commandText += " order by Name";
+            }
             else
             {
                 commandText += " order by ListOrder";
             }
 
-
+            /*
             if (query.Limit > 0)
             {
                 commandText += " LIMIT " + query.Limit;
             }
+            */
+
+
+            if (withLimit && (query.Limit.HasValue || query.StartIndex.HasValue))
+            {
+                var offset = query.StartIndex ?? 0;
+
+                if (query.Limit.HasValue || offset > 0)
+                {
+                    commandText += " LIMIT " + (query.Limit ?? int.MaxValue).ToString(CultureInfo.InvariantCulture);
+                }
+
+                if (offset > 0)
+                {
+                    commandText += " OFFSET " + offset.ToString(CultureInfo.InvariantCulture);
+                }
+            }
+
+            return commandText;
+
+        }
+
+        public long CountPeopleNames(InternalPeopleQuery query)
+        {
+
+            if (query == null)
+            {
+                throw new ArgumentNullException(nameof(query));
+            }
+
+            CheckDisposed();
+
+            var commandText = getPeopleNamesCommand(query, false);
+            commandText = commandText.Replace("Distinct Name", "Count(Distinct Name) as Count");
+
+            using (var connection = GetConnection(true))
+            {
+                int result = 0;
+                using (var statement = PrepareStatement(connection, commandText))
+                {
+                    // Run this again to bind the params
+                    GetPeopleWhereClauses(query, statement);
+
+                    foreach (var row in statement.ExecuteQuery())
+                    {
+                        result = row.GetInt32(0);
+                        //Logger.LogInformation("Count result is {0}", result);
+                    }
+                }
+
+                return result;
+            }
+
+        }
+
+        public List<string> GetPeopleNames(InternalPeopleQuery query)
+        {
+            if (query == null)
+            {
+                throw new ArgumentNullException(nameof(query));
+            }
+
+            CheckDisposed();
+
+            var commandText = getPeopleNamesCommand(query, true);
 
             using (var connection = GetConnection(true))
             {

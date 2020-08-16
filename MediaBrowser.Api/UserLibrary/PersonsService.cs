@@ -10,6 +10,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Services;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace MediaBrowser.Api.UserLibrary
 {
@@ -125,22 +126,38 @@ namespace MediaBrowser.Api.UserLibrary
 
         protected override QueryResult<(BaseItem, ItemCounts)> GetItems(GetItemsByName request, InternalItemsQuery query)
         {
-            var items = LibraryManager.GetPeopleItems(new InternalPeopleQuery
+            // TODO just for debugging
+            Logger.LogInformation("PersonTypes {0}", query.PersonTypes);
+            Logger.LogInformation("NameContains {0}", query.NameContains);
+            Logger.LogInformation("SearchTerm {0}", query.SearchTerm);
+            Logger.LogInformation("OrderBy {0}", query.OrderBy);
+            Logger.LogInformation("StartINdex {0}", query.StartIndex);
+            Logger.LogInformation("Limit {0}", query.Limit);
+
+
+            var itemsQuery = new InternalPeopleQuery
             {
                 PersonTypes = query.PersonTypes,
                 NameContains = query.NameContains ?? query.SearchTerm,
-                OrderBy = query.OrderBy
-            });
+                OrderBy = query.OrderBy,
+                StartIndex = query.StartIndex,
+                Limit = query.Limit
+            };
+
+            var items = LibraryManager.GetPeopleItems(itemsQuery);
 
             if ((query.IsFavorite ?? false) && query.User != null)
             {
                 items = items.Where(i => UserDataRepository.GetUserData(query.User, i).IsFavorite).ToList();
             }
 
+            var count  = LibraryManager.CountPeopleItems(itemsQuery);
+            //Logger.LogInformation("Outer cound is {0}", count);
+
             return new QueryResult<(BaseItem, ItemCounts)>
             {
-                TotalRecordCount = items.Count,
-                Items = items.Take(query.Limit ?? int.MaxValue).Select(i => (i as BaseItem, new ItemCounts())).ToArray()
+                TotalRecordCount = unchecked((int)count),
+                Items = items/*.Take(query.Limit ?? int.MaxValue)*/.Select(i => (i as BaseItem, new ItemCounts())).ToArray()
             };
         }
     }

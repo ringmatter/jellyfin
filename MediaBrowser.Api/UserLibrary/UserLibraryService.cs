@@ -38,6 +38,13 @@ namespace MediaBrowser.Api.UserLibrary
         /// <value>The id.</value>
         [ApiMember(Name = "Id", Description = "Item Id", IsRequired = true, DataType = "string", ParameterType = "path", Verb = "GET")]
         public string Id { get; set; }
+
+        /// <summary>
+        /// Gets or sets the skipRefresh.
+        /// </summary>
+        /// <value>The skipRefresh.</value>
+        [ApiMember(Name = "SkipRefresh", Description = "Skip metadata refresh", IsRequired = false, DataType = "bool", ParameterType = "path", Verb = "GET")]
+        public bool SkipRefresh { get; set; }
     }
 
     /// <summary>
@@ -409,7 +416,11 @@ namespace MediaBrowser.Api.UserLibrary
 
             var item = string.IsNullOrEmpty(request.Id) ? _libraryManager.GetUserRootFolder() : _libraryManager.GetItemById(request.Id);
 
-            await RefreshItemOnDemandIfNeeded(item).ConfigureAwait(false);
+            var skip = request.SkipRefresh;
+            if (!skip)
+            {
+                await RefreshItemOnDemandIfNeeded(item).ConfigureAwait(false);
+            }
 
             var dtoOptions = GetDtoOptions(_authContext, request);
 
@@ -430,7 +441,7 @@ namespace MediaBrowser.Api.UserLibrary
                     var options = new MetadataRefreshOptions(new DirectoryService(_fileSystem))
                     {
                         MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
-                        ImageRefreshMode = MetadataRefreshMode.FullRefresh,
+                        ImageRefreshMode = MetadataRefreshMode.None, // slows down detail view a lot when we search on bing
                         ForceSave = performFullRefresh
                     };
 

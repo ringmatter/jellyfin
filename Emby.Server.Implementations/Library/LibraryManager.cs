@@ -2887,6 +2887,12 @@ namespace Emby.Server.Implementations.Library
             }).Where(i => i != null).ToList();
         }
 
+        public long CountPeopleItems(InternalPeopleQuery query)
+        {
+            return _itemRepository.CountPeopleNames(query);
+
+        }
+
         public List<string> GetPeopleNames(InternalPeopleQuery query)
         {
             return _itemRepository.GetPeopleNames(query);
